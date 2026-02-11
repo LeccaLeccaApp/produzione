@@ -20,7 +20,6 @@ if 'spese' not in st.session_state: st.session_state.spese = []
 
 st.title("🍦 Laboratorio Lecca-Lecca")
 
-# --- MENU LATERALE ---
 with st.sidebar:
     st.header("📝 1. Scegli Gusti")
     gusto = st.selectbox("Seleziona", sorted(list(RICETTE.keys())))
@@ -30,12 +29,6 @@ with st.sidebar:
         st.session_state.produzione_attiva = False
 
     if st.session_state.piano_lavoro and not st.session_state.produzione_attiva:
-        st.divider()
-        st.subheader("Gusti scelti:")
-        for p in st.session_state.piano_lavoro:
-            st.text(f"• {p['gusto']} ({p['kg']}kg)")
-        
-        # IL TASTO CHE CERCAVI
         if st.button("🚀 MANDA IN PRODUZIONE", use_container_width=True):
             st.session_state.produzione_attiva = True
 
@@ -50,8 +43,7 @@ with st.sidebar:
             if st.form_submit_button("SALVA"):
                 st.session_state.spese.append({"forn": forn, "tot": imp, "det": det, "data": datetime.now().strftime("%d/%m")})
 
-# --- AREA DI LAVORO ---
-t1, t2 = st.tabs(["🚀 AREA PRODUZIONE", "📊 CONTABILITÀ"])
+t1, t2 = st.tabs(["🚀 PRODUZIONE", "📊 CONTABILITÀ & REPORT"])
 
 with t1:
     if st.session_state.produzione_attiva:
@@ -59,20 +51,23 @@ with t1:
         last_s = None
         for _, row in df.iterrows():
             if last_s is not None and row['seq'] != last_s:
-                st.error("🚿 RISCIACQUO MACCHINA") # Rispetto la sequenza! [cite: 2026-02-11]
+                st.error("🚿 RISCIACQUO MACCHINA") [cite: 2026-02-11]
             with st.expander(f"📖 {row['gusto']} - {row['kg']} KG", expanded=True):
                 for ing, dose in RICETTE[row['gusto']]['ing']:
                     st.write(f"- {ing}: **{int(dose * row['kg'])}g**")
             last_s = row['seq']
         
-        if st.button("✅ FINE LAVORO (Pulisci tutto)"):
+        if st.button("✅ FINE LAVORO"):
             st.session_state.piano_lavoro = []
             st.session_state.produzione_attiva = False
             st.rerun()
-    else:
-        st.info("La lista è vuota o in attesa. Aggiungi i gusti e clicca 'MANDA IN PRODUZIONE' a sinistra.")
 
 with t2:
-    st.subheader("Riepilogo Spese")
+    st.subheader("Genera Report per Email")
+    report = f"REPORT LECCA-LECCA - {datetime.now().strftime('%d/%m/%Y')}\n\n"
+    report += "--- FATTURE ---\n"
     for s in st.session_state.spese:
-        st.info(f"{s['forn']} ({s['data']}): €{s['tot']}")
+        report += f"{s['forn']} ({s['data']}): €{s['tot']}\nNote: {s['det']}\n\n"
+    
+    st.text_area("Copia questo testo e invialo a cristianonicola84@gmail.com:", report, height=300)
+    st.info("Schiaccia sopra col dito, seleziona tutto e fai 'Copia'. Poi incollalo nella tua app delle email.")
