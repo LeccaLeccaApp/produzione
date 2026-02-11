@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
 
 st.set_page_config(page_title="Lecca-Lecca Lab", layout="wide")
 
@@ -17,7 +18,7 @@ RICETTE = {
 if 'produzione' not in st.session_state: st.session_state.produzione = []
 if 'attiva' not in st.session_state: st.session_state.attiva = False
 
-st.title("🍦 Gestione Produzione")
+st.title("🍦 Gestione Produzione Unica")
 
 with st.sidebar:
     st.header("🛒 Selezione")
@@ -32,42 +33,44 @@ with st.sidebar:
             st.session_state.attiva = True
 
 if st.session_state.attiva:
-    # 1. GENERAZIONE TESTO PER STAMPA UNICA
-    report_stampa = "LISTA PRODUZIONE LECCA-LECCA\n" + "="*30 + "\n\n"
+    # --- COSTRUZIONE UNICA DEL REPORT PER STAMPA ---
+    data_oggi = datetime.now().strftime('%d/%m/%Y')
+    testo_finale = f"📋 REPORT PRODUZIONE - {data_oggi}\n"
+    testo_finale += "="*40 + "\n\n"
+    
     df = pd.DataFrame(st.session_state.produzione).sort_values(by="seq")
     ultimo_s = None
     
-    for i, row in df.iterrows():
+    for _, row in df.iterrows():
+        # Logica risciacquo automatica tra sequenze diverse [cite: 2026-02-11]
         if ultimo_s is not None and row['seq'] != ultimo_s:
-            report_stampa += "\n🚿 RISCIACQUO MACCHINA\n" + "-"*30 + "\n"
+            testo_finale += "\n🚿 RISCIACQUO MACCHINA OBBLIGATORIO\n"
+            testo_finale += "-"*40 + "\n"
         
-        report_stampa += f"\n👉 {row['gusto']} ({row['kg']} KG)\n"
+        testo_finale += f"\n🍦 GUSTO: {row['gusto']} ({row['kg']} KG)\n"
         for ing, dose in RICETTE[row['gusto']]['ing']:
-            report_stampa += f"- {ing}: {int(dose * (row['kg']/7.0) if row['kg']!=7.0 else dose)}g\n"
-        report_stampa += f"Etichetta: {RICETTE[row['gusto']]['kcal']} kcal/100g\n"
+            # Calcolo proporzionale se i KG sono diversi da 7
+            peso = int(dose * (row['kg']/7.0)) if row['kg'] != 7.0 else int(dose)
+            testo_finale += f"  - {ing}: {peso}g\n"
+        
+        testo_finale += f"🏷️ Etichetta: {RICETTE[row['gusto']]['kcal']} kcal/100g\n"
+        testo_finale += "."*40 + "\n"
         ultimo_s = row['seq']
 
-    # --- TASTO STAMPA GENERALE ---
+    # --- TASTO STAMPA UNICO ---
+    st.subheader("🖨️ Documento pronto per la stampa")
     st.download_button(
-        label="🖨️ STAMPA TUTTA LA LISTA (PDF/TXT)",
-        data=report_stampa,
-        file_name=f"produzione_{datetime.now().strftime('%d_%m')}.txt",
+        label="CLICCA QUI PER STAMPARE TUTTA LA LISTA",
+        data=testo_finale,
+        file_name=f"Produzione_{datetime.now().strftime('%d_%m')}.txt",
         mime="text/plain",
         use_container_width=True
     )
     
     st.divider()
+    
+    # Visualizzazione rapida a schermo (facoltativa)
+    st.text(testo_finale)
 
-    # 2. VISUALIZZAZIONE A SCHERMO
-    ultimo_s = None
-    for i, row in df.iterrows():
-        if ultimo_s is not None and row['seq'] != ultimo_s:
-            st.error("🚿 RISCIACQUO MACCHINA") [cite: 2026-02-11]
-            
-        with st.expander(f"📖 {row['gusto']} - {row['kg']} KG", expanded=True):
-            for ing, dose in RICETTE[row['gusto']]['ing']:
-                st.write(f"- {ing}: **{int(dose * (row['kg']/7.0) if row['kg']!=7.0 else dose)}g**")
-        ultimo_s = row['seq']
-
-    if st.button("✅ FINE E PULISCI"):
+    if st.button("✅ FINE E SVUOTA"):
         st.session_state.produzione = []; st.session_state.attiva = False; st.rerun()
