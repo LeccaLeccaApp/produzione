@@ -1,9 +1,9 @@
 import streamlit as st
 import pandas as pd
 
-st.set_page_config(page_title="Lecca-Lecca Laboratorio", layout="wide")
+st.set_page_config(page_title="Lecca-Lecca Lab", layout="wide")
 
-# --- DATABASE COMPLETO (Gusti + Basi per Etichette) ---
+# Database con calorie per etichette
 RICETTE = {
     "NOCCIOLA VEGANO": {"ing": [("Acqua", 625), ("Pasta Nocciola", 130), ("Zuccheri", 350)], "seq": 1, "kcal": 210},
     "BUENO VEGANO": {"ing": [("Acqua", 625), ("Pasta Bueno Veg", 120)], "seq": 1, "kcal": 225},
@@ -19,59 +19,51 @@ RICETTE = {
 if 'produzione' not in st.session_state: st.session_state.produzione = []
 if 'attiva' not in st.session_state: st.session_state.attiva = False
 
-st.title("🍦 Produzione & Etichette Lecca-Lecca")
+st.title("🍦 Produzione & Etichette")
 
-# --- LATERALE: INSERIMENTO ---
 with st.sidebar:
-    st.header("🛒 Selezione Gusti")
-    gusto_scelto = st.selectbox("Scegli Gusto", list(RICETTE.keys()))
-    quantita = st.number_input("KG da produrre", value=7.0, step=0.5)
+    st.header("🛒 Selezione")
+    gusto_scelto = st.selectbox("Gusto", list(RICETTE.keys()))
+    quantita = st.number_input("KG", value=7.0, step=0.5)
     
-    if st.button("AGGIUNGI ALLA LISTA"):
+    if st.button("AGGIUNGI"):
         st.session_state.produzione.append({"gusto": gusto_scelto, "kg": quantita, "seq": RICETTE[gusto_scelto]['seq']})
         st.session_state.attiva = False
 
     if st.session_state.produzione and not st.session_state.attiva:
         st.divider()
-        # IL TASTO CHE TI SERVE
         if st.button("🚀 AVVIA PRODUZIONE", use_container_width=True):
             st.session_state.attiva = True
 
-# --- AREA CENTRALE ---
 if st.session_state.attiva:
-    st.header("👨‍🍳 SCHEDE TECNICHE E ETICHETTE")
-    
-    # Ordina per sequenza per i risciacqui
     df = pd.DataFrame(st.session_state.produzione).sort_values(by="seq")
     ultimo_s = None
     
-    for _, row in df.iterrows():
-        # Messaggio Risciacquo tra categorie diverse [cite: 2026-02-11]
+    for i, row in df.iterrows():
+        # Risciacquo [cite: 2026-02-11]
         if ultimo_s is not None and row['seq'] != ultimo_s:
             st.error("🚿 RISCIACQUO MACCHINA OBBLIGATORIO")
             
-        col1, col2 = st.columns([2, 1])
-        
-        with col1:
+        c1, c2 = st.columns([2, 1])
+        with c1:
             with st.expander(f"📖 RICETTA: {row['gusto']} ({row['kg']} KG)", expanded=True):
                 for ing, dose in RICETTE[row['gusto']]['ing']:
                     st.write(f"- {ing}: **{int(dose * row['kg'])}g**")
         
-        with col2:
+        with c2:
             with st.container(border=True):
-                st.caption("🏷️ ETICHETTA NUTRIZIONALE")
-                st.write(f"**Gusto:** {row['gusto']}")
-                st.write(f"Valore energetico: {RICETTE[row['gusto']]['kcal']} kcal / 100g")
-                st.button("🖨️ Stampa", key=f"print_{row['gusto']}_{_}")
-
+                st.caption("🏷️ ETICHETTA")
+                info_etichetta = f"GUSTO: {row['gusto']}\nValore Energetico: {RICETTE[row['gusto']]['kcal']} kcal/100g"
+                st.write(info_etichetta)
+                
+                # TASTO CHE FUNZIONA SU IPHONE
+                st.download_button(
+                    label="💾 SALVA ETICHETTA",
+                    data=info_etichetta,
+                    file_name=f"etichetta_{row['gusto']}.txt",
+                    key=f"dl_{i}"
+                )
         ultimo_s = row['seq']
 
     if st.button("✅ FINISCI E PULISCI"):
-        st.session_state.produzione = []
-        st.session_state.attiva = False
-        st.rerun()
-else:
-    if not st.session_state.produzione:
-        st.info("👋 Ciao Nicola! Inizia aggiungendo i gusti dal menu a sinistra.")
-    else:
-        st.warning("Hai dei gusti pronti! Clicca '🚀 AVVIA PRODUZIONE' a sinistra.")
+        st.session_state.produzione = []; st.session_state.attiva = False; st.rerun()
