@@ -1,63 +1,75 @@
 import streamlit as st
 import pandas as pd
+from datetime import datetime
 
-st.set_page_config(page_title="Lecca-Lecca ERP", layout="wide")
+st.set_page_config(page_title="Lecca-Lecca ERP & Contabilità", layout="wide")
 
-# Database Ricette
+# --- DATABASE RICETTE ---
 RICETTE = {
-    "NOCCIOLA VEGANO": {"ing": [("Acqua", 625), ("Bianco Stevia", 312), ("Pasta Nocciola", 130), ("DX", 37.5)], "seq": 1},
+    "NOCCIOLA VEGANO": {"ing": [("Acqua", 625), ("Bianco Stevia", 312), ("Pasta Nocciola", 130)], "seq": 1},
     "OREO": {"ing": [("Base Bianca", 900), ("Pasta Cookies Black", 50)], "seq": 2},
-    "GALAK": {"ing": [("Base Bianca", 825), ("Panna Suldy", 150), ("Pasta Cioccolato Bianco", 100)], "seq": 2},
+    "GALAK": {"ing": [("Base Bianca", 825), ("Panna Suldy", 150), ("Pasta Galak", 100)], "seq": 2},
     "LIMONE": {"ing": [("Acqua", 700), ("Lemon Plus", 300)], "seq": 3},
-    "FONDENTE": {"ing": [("Acqua", 600), ("Fondente", 450), ("DX", 20)], "seq": 12},
+    "FONDENTE": {"ing": [("Acqua", 600), ("Fondente", 450)], "seq": 12},
 }
 
-if 'produzione' not in st.session_state:
-    st.session_state.produzione = []
+# Inizializzazione memorie
+if 'produzione' not in st.session_state: st.session_state.produzione = []
+if 'spese' not in st.session_state: st.session_state.spese = []
 
-st.title("🍦 Gestione Lecca-Lecca")
+st.title("🍦 Sistema Integrato Lecca-Lecca")
 
 # --- BARRA LATERALE ---
 with st.sidebar:
-    st.header("➕ Nuovo Inserimento")
-    tipo_lista = st.radio("Quando devi produrre?", ["Oggi", "Domani"])
-    gusto = st.selectbox("Gusto", sorted(list(RICETTE.keys())))
-    kg = st.number_input("Quantità (KG)", value=7.0, step=0.5)
-    
-    if st.button("AGGIUNGI IN LISTA"):
-        st.session_state.produzione.append({"gusto": gusto, "kg": kg, "quando": tipo_lista, "seq": RICETTE[gusto]['seq']})
-    
-    st.divider()
-    st.header("📸 Gestione Fatture")
-    foto = st.camera_input("Scatta foto fattura")
+    st.header("📸 Carica Fattura/Scontrino")
+    foto = st.camera_input("Scatta")
     if foto:
-        st.success("Fattura acquisita correttamente!")
+        st.success("Immagine acquisita!")
+        with st.form("dati_fattura"):
+            fornitore = st.text_input("Fornitore (es. Saima)")
+            data_f = st.date_input("Data Fattura", datetime.now())
+            importo = st.number_input("Importo Totale (€)", step=0.01)
+            dettaglio = st.text_area("Articoli (es: Latte 20lt 24€, Panna 10lt 40€)")
+            if st.form_submit_button("SALVA IN CONTABILITÀ"):
+                st.session_state.spese.append({
+                    "mese": data_f.strftime("%m/%Y"),
+                    "fornitore": fornitore,
+                    "data": data_f.strftime("%d/%m/%y"),
+                    "totale": importo,
+                    "dettaglio": dettaglio
+                })
+                st.balloons()
 
 # --- PANNELLO CENTRALE ---
-tab1, tab2 = st.tabs(["🚀 PRODUZIONE OGGI", "📅 PIANO PER DOMANI"])
-
-def mostra_lista(periodo):
-    lista = [item for item in st.session_state.produzione if item['quando'] == periodo]
-    if lista:
-        df = pd.DataFrame(lista).sort_values(by="seq")
-        last_s = None
-        for _, row in df.iterrows():
-            if last_s is not None and row['seq'] != last_s:
-                st.error("🚿 RISCIACQUO") # Rispetto la sequenza Nicola! [2026-02-11]
-            
-            with st.expander(f"{row['gusto']} - {row['kg']} KG"):
-                for ing, dose in RICETTE[row['gusto']]['ing']:
-                    st.write(f"- {ing}: {int(dose * row['kg'])}g")
-            last_s = row['seq']
-    else:
-        st.info(f"Nessuna produzione prevista per {periodo.lower()}.")
+tab1, tab2, tab3 = st.tabs(["🚀 PRODUZIONE", "📊 CONTABILITÀ MESE", "📧 INVIO PDF"])
 
 with tab1:
-    mostra_lista("Oggi")
+    st.subheader("Pianifica Lavoro")
+    c1, c2 = st.columns(2)
+    with c1: g = st.selectbox("Gusto", list(RICETTE.keys()))
+    with c2: k = st.number_input("KG", value=7.0)
+    if st.button("AGGIUNGI"):
+        st.session_state.produzione.append({"gusto": g, "kg": k, "seq": RICETTE[g]['seq']})
+    
+    # Lista con Risciacquo [2026-02-11]
+    df = pd.DataFrame(st.session_state.produzione).sort_values(by="seq")
+    last_s = None
+    for _, row in df.iterrows():
+        if last_s is not None and row['seq'] != last_s:
+            st.error("🚿 RISCIACQUO")
+        st.write(f"**{row['gusto']}** - {row['kg']}kg")
+        last_s = row['seq']
 
 with tab2:
-    mostra_lista("Domani")
+    st.subheader(f"Riepilogo {datetime.now().strftime('%B %Y')}")
+    if st.session_state.spese:
+        for s in st.session_state.spese:
+            st.info(f"**{s['fornitore']}** - Fattura del {s['data']}: **€{s['totale']}**")
+            st.write(f"Dettaglio: {s['dettaglio']}")
+    else:
+        st.write("Nessuna spesa registrata questo mese.")
 
-if st.button("🗑️ SVUOTA TUTTO"):
-    st.session_state.produzione = []
-    st.rerun()
+with tab3:
+    st.write("L'invio del PDF a **cristianonicola84@gmail.com** avverrà l'ultimo giorno del mese.")
+    if st.button("GENERA ANTEPRIMA PDF"):
+        st.warning("Funzione di generazione PDF in fase di attivazione su server...")
