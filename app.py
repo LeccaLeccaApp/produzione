@@ -2,74 +2,88 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Lecca-Lecca ERP & Contabilità", layout="wide")
+st.set_page_config(page_title="Lecca-Lecca ERP Completo", layout="wide")
 
-# --- DATABASE RICETTE ---
+# --- DATABASE INTEGRALE (Tutte le tue ricette) ---
 RICETTE = {
-    "NOCCIOLA VEGANO": {"ing": [("Acqua", 625), ("Bianco Stevia", 312), ("Pasta Nocciola", 130)], "seq": 1},
+    # SEQ 1: VEGANI
+    "NOCCIOLA VEGANO": {"ing": [("Acqua", 625), ("Bianco Stevia", 312), ("Pasta Nocciola", 130), ("DX", 37.5)], "seq": 1},
+    "BUENO VEGANO": {"ing": [("Acqua", 625), ("Bianco Stevia", 312), ("Pasta Nocciola", 50)], "seq": 1},
+    
+    # SEQ 2: CREME LATTE
     "OREO": {"ing": [("Base Bianca", 900), ("Pasta Cookies Black", 50)], "seq": 2},
-    "GALAK": {"ing": [("Base Bianca", 825), ("Panna Suldy", 150), ("Pasta Galak", 100)], "seq": 2},
+    "RED VELVET": {"ing": [("Base Bianca", 900), ("Pasta Cookies Black", 50)], "seq": 2},
+    "GALAK": {"ing": [("Base Bianca", 825), ("Panna Suldy", 150), ("Pasta Cioccolato Bianco", 100)], "seq": 2},
+    "FIOR DI LATTE": {"ing": [("Base Lecca lecca", 1000)], "seq": 2},
+    "STRACCIATELLA": {"ing": [("Base Lecca lecca", 1000), ("Cioccolato scaglie", 80)], "seq": 2},
+    
+    # SEQ 3-4: FRUTTA
     "LIMONE": {"ing": [("Acqua", 700), ("Lemon Plus", 300)], "seq": 3},
-    "FONDENTE": {"ing": [("Acqua", 600), ("Fondente", 450)], "seq": 12},
+    "FRAGOLA": {"ing": [("Acqua", 300), ("Polpa Fragola", 375), ("Base", 200), ("DX", 40), ("SX", 75)], "seq": 3},
+    "MANGO": {"ing": [("Acqua", 700), ("Mango", 300)], "seq": 4},
+    
+    # ALTRE CATEGORIE
+    "CARAMELLO SALATO": {"ing": [("Latte Intero", 750), ("Caramello Salato", 312.5)], "seq": 5},
+    "ZUPPA INGLESE": {"ing": [("Base Bianca", 900), ("Panna Suldy", 100), ("Pasta Zuppa Inglese", 30)], "seq": 7},
+    "FONDENTE": {"ing": [("Acqua", 600), ("Fondente", 450), ("DX", 20)], "seq": 12},
+    
+    # TORTE E TRONCHETTI (Esempi base da personalizzare)
+    "TORTA SEMIFREDDO": {"ing": [("Base Panna", 1000)], "seq": 13},
+    "TRONCHETTO": {"ing": [("Base Semifreddo", 1000)], "seq": 13},
 }
 
-# Inizializzazione memorie
 if 'produzione' not in st.session_state: st.session_state.produzione = []
 if 'spese' not in st.session_state: st.session_state.spese = []
 
-st.title("🍦 Sistema Integrato Lecca-Lecca")
+st.title("🍦 Gestione Totale Lecca-Lecca")
 
-# --- BARRA LATERALE ---
 with st.sidebar:
-    st.header("📸 Carica Fattura/Scontrino")
+    st.header("➕ Aggiungi")
+    tipo = st.radio("Destinazione", ["Oggi", "Domani"])
+    gusto = st.selectbox("Seleziona Prodotto", sorted(list(RICETTE.keys())))
+    kg = st.number_input("Quantità (KG)", value=7.0, step=0.5)
+    
+    if st.button("INSERISCI IN LISTA"):
+        st.session_state.produzione.append({"gusto": gusto, "kg": kg, "quando": tipo, "seq": RICETTE[gusto]['seq']})
+    
+    st.divider()
+    st.header("📸 Foto Fatture")
     foto = st.camera_input("Scatta")
     if foto:
-        st.success("Immagine acquisita!")
-        with st.form("dati_fattura"):
-            fornitore = st.text_input("Fornitore (es. Saima)")
-            data_f = st.date_input("Data Fattura", datetime.now())
-            importo = st.number_input("Importo Totale (€)", step=0.01)
-            dettaglio = st.text_area("Articoli (es: Latte 20lt 24€, Panna 10lt 40€)")
-            if st.form_submit_button("SALVA IN CONTABILITÀ"):
-                st.session_state.spese.append({
-                    "mese": data_f.strftime("%m/%Y"),
-                    "fornitore": fornitore,
-                    "data": data_f.strftime("%d/%m/%y"),
-                    "totale": importo,
-                    "dettaglio": dettaglio
-                })
-                st.balloons()
+        with st.form("dati"):
+            forn = st.text_input("Fornitore (es. Saima)")
+            imp = st.number_input("Totale €", step=0.01)
+            det = st.text_area("Articoli (Latte, Panna, ecc.)")
+            if st.form_submit_button("SALVA PER PDF"):
+                st.session_state.spese.append({"mese": datetime.now().strftime("%m/%Y"), "forn": forn, "tot": imp, "det": det})
+                st.success("Salvato!")
 
-# --- PANNELLO CENTRALE ---
-tab1, tab2, tab3 = st.tabs(["🚀 PRODUZIONE", "📊 CONTABILITÀ MESE", "📧 INVIO PDF"])
+tab1, tab2, tab3 = st.tabs(["🚀 PRODUZIONE", "📊 CONTABILITÀ", "🧪 TABELLE NUTRIZIONALI"])
+
+def mostra(periodo):
+    lista = [i for i in st.session_state.produzione if i['quando'] == periodo]
+    if lista:
+        df = pd.DataFrame(lista).sort_values(by="seq")
+        last_s = None
+        for _, row in df.iterrows():
+            if last_s is not None and row['seq'] != last_s:
+                st.error("🚿 RISCIACQUO MACCHINA")
+            with st.expander(f"✅ {row['gusto']} - {row['kg']} KG"):
+                for ing, dose in RICETTE[row['gusto']]['ing']:
+                    st.write(f"- {ing}: **{int(dose * row['kg'])}g**")
+            last_s = row['seq']
 
 with tab1:
-    st.subheader("Pianifica Lavoro")
-    c1, c2 = st.columns(2)
-    with c1: g = st.selectbox("Gusto", list(RICETTE.keys()))
-    with c2: k = st.number_input("KG", value=7.0)
-    if st.button("AGGIUNGI"):
-        st.session_state.produzione.append({"gusto": g, "kg": k, "seq": RICETTE[g]['seq']})
-    
-    # Lista con Risciacquo [2026-02-11]
-    df = pd.DataFrame(st.session_state.produzione).sort_values(by="seq")
-    last_s = None
-    for _, row in df.iterrows():
-        if last_s is not None and row['seq'] != last_s:
-            st.error("🚿 RISCIACQUO")
-        st.write(f"**{row['gusto']}** - {row['kg']}kg")
-        last_s = row['seq']
+    st.subheader("Lista di Oggi")
+    mostra("Oggi")
+    st.divider()
+    st.subheader("Lista di Domani")
+    mostra("Domani")
 
 with tab2:
-    st.subheader(f"Riepilogo {datetime.now().strftime('%B %Y')}")
-    if st.session_state.spese:
-        for s in st.session_state.spese:
-            st.info(f"**{s['fornitore']}** - Fattura del {s['data']}: **€{s['totale']}**")
-            st.write(f"Dettaglio: {s['dettaglio']}")
-    else:
-        st.write("Nessuna spesa registrata questo mese.")
+    st.write(f"Spese di {datetime.now().strftime('%B %Y')}")
+    for s in st.session_state.spese:
+        st.info(f"{s['forn']}: €{s['tot']} (Articoli: {s['det']})")
 
 with tab3:
-    st.write("L'invio del PDF a **cristianonicola84@gmail.com** avverrà l'ultimo giorno del mese.")
-    if st.button("GENERA ANTEPRIMA PDF"):
-        st.warning("Funzione di generazione PDF in fase di attivazione su server...")
+    st.info("Qui appariranno i valori nutrizionali per etichettatura.")
