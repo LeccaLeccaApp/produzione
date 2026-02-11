@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Lecca-Lecca ERP", layout="wide")
+st.set_page_config(page_title="Lecca-Lecca Produzione", layout="wide")
 
 # Database Ricette
 RICETTE = {
@@ -15,22 +15,24 @@ RICETTE = {
 }
 
 if 'piano_lavoro' not in st.session_state: st.session_state.piano_lavoro = []
-if 'produzione_attiva' not in st.session_state: st.session_state.produzione_attiva = False
+if 'in_produzione' not in st.session_state: st.session_state.in_produzione = False
 if 'spese' not in st.session_state: st.session_state.spese = []
 
 st.title("🍦 Laboratorio Lecca-Lecca")
 
+# --- MENU LATERALE ---
 with st.sidebar:
     st.header("📝 1. Scegli Gusti")
     gusto = st.selectbox("Seleziona", sorted(list(RICETTE.keys())))
     kg = st.number_input("Quantità (KG)", value=7.0, step=0.5)
     if st.button("AGGIUNGI ALLA LISTA"):
         st.session_state.piano_lavoro.append({"gusto": gusto, "kg": kg, "seq": RICETTE[gusto]['seq']})
-        st.session_state.produzione_attiva = False
+        st.session_state.in_produzione = False
 
-    if st.session_state.piano_lavoro and not st.session_state.produzione_attiva:
+    if st.session_state.piano_lavoro and not st.session_state.in_produzione:
+        st.divider()
         if st.button("🚀 MANDA IN PRODUZIONE", use_container_width=True):
-            st.session_state.produzione_attiva = True
+            st.session_state.in_produzione = True
 
     st.divider()
     st.header("📸 2. Foto Fatture")
@@ -43,31 +45,34 @@ with st.sidebar:
             if st.form_submit_button("SALVA"):
                 st.session_state.spese.append({"forn": forn, "tot": imp, "det": det, "data": datetime.now().strftime("%d/%m")})
 
+# --- AREA CENTRALE ---
 t1, t2 = st.tabs(["🚀 PRODUZIONE", "📊 CONTABILITÀ & REPORT"])
 
 with t1:
-    if st.session_state.produzione_attiva:
+    if st.session_state.in_produzione:
         df = pd.DataFrame(st.session_state.piano_lavoro).sort_values(by="seq")
         last_s = None
         for _, row in df.iterrows():
+            # Corretta logica risciacquo senza errori di sintassi
             if last_s is not None and row['seq'] != last_s:
-                st.error("🚿 RISCIACQUO MACCHINA") [cite: 2026-02-11]
-            with st.expander(f"📖 {row['gusto']} - {row['kg']} KG", expanded=True):
+                st.error("RISCIACQUO MACCHINA OBBLIGATORIO")
+            
+            with st.expander(f"RICETTA: {row['gusto']} - {row['kg']} KG", expanded=True):
                 for ing, dose in RICETTE[row['gusto']]['ing']:
                     st.write(f"- {ing}: **{int(dose * row['kg'])}g**")
             last_s = row['seq']
         
         if st.button("✅ FINE LAVORO"):
             st.session_state.piano_lavoro = []
-            st.session_state.produzione_attiva = False
+            st.session_state.in_produzione = False
             st.rerun()
+    else:
+        st.info("Scegli i gusti a sinistra e clicca sul razzo 🚀")
 
 with t2:
-    st.subheader("Genera Report per Email")
-    report = f"REPORT LECCA-LECCA - {datetime.now().strftime('%d/%m/%Y')}\n\n"
-    report += "--- FATTURE ---\n"
+    st.subheader("Riepilogo per Email")
+    report = "RIEPILOGO FATTURE\n"
     for s in st.session_state.spese:
-        report += f"{s['forn']} ({s['data']}): €{s['tot']}\nNote: {s['det']}\n\n"
-    
-    st.text_area("Copia questo testo e invialo a cristianonicola84@gmail.com:", report, height=300)
-    st.info("Schiaccia sopra col dito, seleziona tutto e fai 'Copia'. Poi incollalo nella tua app delle email.")
+        st.info(f"{s['forn']} (€{s['tot']})")
+        report += f"{s['forn']} - €{s['tot']}\n"
+    st.text_area("Copia questo testo per Nicola:", report)
