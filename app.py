@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Lecca-Lecca Produzione", layout="wide")
+st.set_page_config(page_title="Lecca-Lecca ERP Globale", layout="wide")
 
 # Database Ricette
 RICETTE = {
@@ -16,48 +16,64 @@ RICETTE = {
 
 if 'piano_lavoro' not in st.session_state: st.session_state.piano_lavoro = []
 if 'in_produzione' not in st.session_state: st.session_state.in_produzione = False
+if 'spese' not in st.session_state: st.session_state.spese = []
 
-st.title("🍦 Laboratorio Lecca-Lecca")
+st.title("🍦 Gestione Totale Lecca-Lecca")
 
 # --- BARRA LATERALE ---
 with st.sidebar:
     st.header("📝 Pianifica")
     gusto = st.selectbox("Seleziona", sorted(list(RICETTE.keys())))
     kg = st.number_input("KG", value=7.0, step=0.5)
-    
     if st.button("AGGIUNGI AL PIANO"):
         st.session_state.piano_lavoro.append({"gusto": gusto, "kg": kg, "seq": RICETTE[gusto]['seq']})
         st.session_state.in_produzione = False
-
-    st.divider()
+    
     if st.session_state.piano_lavoro:
-        st.write("Lista d'attesa:")
-        for p in st.session_state.piano_lavoro:
-            st.text(f"• {p['gusto']} ({p['kg']}kg)")
-        
-        # IL TASTO CHE VOLEVI
         if st.button("🚀 MANDA IN PRODUZIONE", use_container_width=True):
             st.session_state.in_produzione = True
 
-# --- AREA DI LAVORO ---
-if st.session_state.in_produzione:
-    st.header("👨‍🍳 PRODUZIONE ATTIVA")
-    df = pd.DataFrame(st.session_state.piano_lavoro).sort_values(by="seq")
-    last_s = None
+    st.divider()
+    st.header("📸 Foto Fatture")
+    foto = st.camera_input("Scatta Fattura") # Ritorna la fotocamera!
+    if foto:
+        with st.form("f"):
+            forn = st.text_input("Fornitore")
+            imp = st.number_input("€ Totale", step=0.01)
+            det = st.text_area("Articoli")
+            if st.form_submit_button("CONFERMA E SALVA"):
+                st.session_state.spese.append({"forn": forn, "tot": imp, "det": det, "data": datetime.now().strftime("%d/%m/%y")})
+                st.success("Fattura salvata in lista!")
+
+# --- AREA CENTRALE ---
+t1, t2 = st.tabs(["🚀 PRODUZIONE", "📊 CONTABILITÀ"])
+
+with t1:
+    if st.session_state.in_produzione:
+        df = pd.DataFrame(st.session_state.piano_lavoro).sort_values(by="seq")
+        last_s = None
+        for _, row in df.iterrows():
+            if last_s is not None and row['seq'] != last_s:
+                st.error("🚿 RISCIACQUO MACCHINA") [cite: 2026-02-11]
+            with st.expander(f"📖 {row['gusto']} - {row['kg']} KG", expanded=True):
+                for ing, dose in RICETTE[row['gusto']]['ing']:
+                    st.write(f"- {ing}: **{int(dose * row['kg'])}g**")
+            last_s = row['seq']
+        if st.button("✅ FINE LAVORO"):
+            st.session_state.piano_lavoro = []
+            st.session_state.in_produzione = False
+            st.rerun()
+    else:
+        st.info("Aggiungi i gusti e clicca 🚀 a sinistra")
+
+with t2:
+    st.subheader("Riepilogo Spese")
+    testo_mail = "RIEPILOGO FATTURE GENNAIO/FEBBRAIO 2026\n\n"
+    for s in st.session_state.spese:
+        st.info(f"{s['forn']} - {s['data']}: €{s['tot']}")
+        testo_mail += f"{s['forn']} del {s['data']} €{s['tot']}\n{s['det']}\n\n"
     
-    for _, row in df.iterrows():
-        # Logica risciacquo 
-        if last_s is not None and row['seq'] != last_s:
-            st.error("🚿 RISCIACQUO MACCHINA") 
-        
-        with st.expander(f"📖 {row['gusto']} - {row['kg']} KG", expanded=True):
-            for ing, dose in RICETTE[row['gusto']]['ing']:
-                st.write(f"- {ing}: **{int(dose * row['kg'])}g**")
-        last_s = row['seq']
-    
-    if st.button("✅ FINE LAVORO"):
-        st.session_state.piano_lavoro = []
-        st.session_state.in_produzione = False
-        st.rerun()
-else:
-    st.info("Scegli i gusti a sinistra e poi clicca sul tasto razzo 🚀")
+    st.divider()
+    st.write("Invia a: **cristianonicola84@gmail.com**")
+    # Tasto per copiare il testo se la mail automatica non parte
+    st.text_area("Copia questo testo per la tua mail:", testo_mail, height=200)
