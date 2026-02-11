@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 
-st.set_page_config(page_title="Lecca-Lecca ERP Globale", layout="wide")
+st.set_page_config(page_title="Lecca-Lecca ERP", layout="wide")
 
 # Database Ricette
 RICETTE = {
@@ -15,72 +15,64 @@ RICETTE = {
 }
 
 if 'piano_lavoro' not in st.session_state: st.session_state.piano_lavoro = []
-if 'in_produzione' not in st.session_state: st.session_state.in_produzione = False
+if 'produzione_attiva' not in st.session_state: st.session_state.produzione_attiva = False
 if 'spese' not in st.session_state: st.session_state.spese = []
 
-st.title("🍦 Gestione Integrale Lecca-Lecca")
+st.title("🍦 Laboratorio Lecca-Lecca")
 
-# --- BARRA LATERALE ---
+# --- MENU LATERALE ---
 with st.sidebar:
-    st.header("📝 Pianifica Produzione")
-    gusto = st.selectbox("Seleziona Gusto", sorted(list(RICETTE.keys())))
+    st.header("📝 1. Scegli Gusti")
+    gusto = st.selectbox("Seleziona", sorted(list(RICETTE.keys())))
     kg = st.number_input("Quantità (KG)", value=7.0, step=0.5)
-    if st.button("AGGIUNGI AL PIANO"):
+    if st.button("AGGIUNGI ALLA LISTA"):
         st.session_state.piano_lavoro.append({"gusto": gusto, "kg": kg, "seq": RICETTE[gusto]['seq']})
-        st.session_state.in_produzione = False
-    
-    if st.session_state.piano_lavoro:
+        st.session_state.produzione_attiva = False
+
+    if st.session_state.piano_lavoro and not st.session_state.produzione_attiva:
+        st.divider()
+        st.subheader("Gusti scelti:")
+        for p in st.session_state.piano_lavoro:
+            st.text(f"• {p['gusto']} ({p['kg']}kg)")
+        
+        # IL TASTO CHE CERCAVI
         if st.button("🚀 MANDA IN PRODUZIONE", use_container_width=True):
-            st.session_state.in_produzione = True
+            st.session_state.produzione_attiva = True
 
     st.divider()
-    st.header("📸 Gestione Fatture")
-    foto = st.camera_input("Scatta Foto Fattura") # Torna la fotocamera!
+    st.header("📸 2. Foto Fatture")
+    foto = st.camera_input("Scatta")
     if foto:
-        with st.form("dati_fattura"):
-            forn = st.text_input("Fornitore (es. Saima)")
-            imp = st.number_input("Importo Totale (€)", step=0.01)
-            det = st.text_area("Cosa hai comprato?")
-            if st.form_submit_button("CONFERMA E SALVA"):
-                st.session_state.spese.append({
-                    "forn": forn, 
-                    "tot": imp, 
-                    "det": det, 
-                    "data": datetime.now().strftime("%d/%m/%y")
-                })
-                st.success("Salvato in contabilità!")
+        with st.form("f"):
+            forn = st.text_input("Fornitore")
+            imp = st.number_input("€ Totale", step=0.01)
+            det = st.text_area("Articoli")
+            if st.form_submit_button("SALVA"):
+                st.session_state.spese.append({"forn": forn, "tot": imp, "det": det, "data": datetime.now().strftime("%d/%m")})
 
-# --- AREA CENTRALE ---
-t1, t2 = st.tabs(["🚀 PRODUZIONE", "📊 CONTABILITÀ & MAIL"])
+# --- AREA DI LAVORO ---
+t1, t2 = st.tabs(["🚀 AREA PRODUZIONE", "📊 CONTABILITÀ"])
 
 with t1:
-    if st.session_state.in_produzione:
+    if st.session_state.produzione_attiva:
         df = pd.DataFrame(st.session_state.piano_lavoro).sort_values(by="seq")
         last_s = None
         for _, row in df.iterrows():
-            # Logica risciacquo automatica [cite: 2026-02-11]
             if last_s is not None and row['seq'] != last_s:
-                st.error("🚿 RISCIACQUO MACCHINA OBBLIGATORIO")
+                st.error("🚿 RISCIACQUO MACCHINA") # Rispetto la sequenza! [cite: 2026-02-11]
             with st.expander(f"📖 {row['gusto']} - {row['kg']} KG", expanded=True):
                 for ing, dose in RICETTE[row['gusto']]['ing']:
                     st.write(f"- {ing}: **{int(dose * row['kg'])}g**")
             last_s = row['seq']
         
-        if st.button("✅ FINE LAVORO (Svuota tutto)"):
+        if st.button("✅ FINE LAVORO (Pulisci tutto)"):
             st.session_state.piano_lavoro = []
-            st.session_state.in_produzione = False
+            st.session_state.produzione_attiva = False
             st.rerun()
     else:
-        st.info("Pianifica i gusti a sinistra e clicca sul tasto 🚀")
+        st.info("La lista è vuota o in attesa. Aggiungi i gusti e clicca 'MANDA IN PRODUZIONE' a sinistra.")
 
 with t2:
-    st.subheader("Riepilogo per PDF/Mail")
-    testo_mail = "RIEPILOGO FATTURE - GESTIONE LECCA-LECCA\n\n"
+    st.subheader("Riepilogo Spese")
     for s in st.session_state.spese:
-        st.info(f"**{s['forn']}** ({s['data']}): €{s['tot']}")
-        testo_mail += f"{s['forn']} del {s['data']} - €{s['tot']}\nNote: {s['det']}\n"
-        testo_mail += "-"*20 + "\n"
-    
-    st.divider()
-    st.write("Copia il testo qui sotto e invialo a: **cristianonicola84@gmail.com**")
-    st.text_area("Testo pronto per la mail:", testo_mail, height=300)
+        st.info(f"{s['forn']} ({s['data']}): €{s['tot']}")
