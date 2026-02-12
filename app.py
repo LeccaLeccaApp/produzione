@@ -22,9 +22,10 @@ st.title("🍦 Smart Lab Lecca-Lecca")
 
 # --- 1. INSERIMENTO VOCALE / TESTO ---
 st.subheader("🎤 Dettatura Ordine")
-input_testo = st.text_area("Dì: 'Terminato nocciola, Galak mancano 2kg, non più idoneo limone'", height=120)
+input_testo = st.text_area("Dì: 'Terminato nocciola, non idoneo limone, Galak 2kg'", height=120)
 
 if st.button("🚀 ELABORA TUTTO L'ORDINE"):
+    # Divide il testo e pulisce
     fasi = re.split(r'[,.\n]', input_testo.upper())
     aggiunti = 0
     
@@ -34,18 +35,18 @@ if st.button("🚀 ELABORA TUTTO L'ORDINE"):
         
         for g_nome in RICETTE.keys():
             if g_nome in f:
-                # Controlla se è stato detto "NON IDONEO"
-                stato_idoneo = "**(NON IDONEO)**" if "IDONEO" in f else ""
+                # LOGICA "NON IDONEO": basta che ci sia la parola IDONEO nel pezzo di frase
+                nota_stato = " (NON IDONEO)" if "IDONEO" in f else ""
                 
-                # Cerca i KG
+                # CERCA I KG (Solo se presenti, altrimenti 7)
                 kg_m = re.search(r'(\d+)', f)
-                kg_ok = float(kg_m.group(1)) if kg_m else 7.0
+                kg_val = float(kg_m.group(1)) if kg_m else 7.0
                 
                 st.session_state.produzione.append({
                     "gusto": g_nome, 
-                    "kg": kg_ok, 
+                    "kg": kg_val, 
                     "seq": RICETTE[g_nome]['seq'],
-                    "nota": stato_idoneo
+                    "nota": nota_stato
                 })
                 aggiunti += 1
                 break
@@ -68,9 +69,7 @@ if st.session_state.produzione:
         if u_s is not None and r['seq'] != u_s:
             txt += "\nRISCIACQUO MACCHINA\n" + "-"*30 + "\nrisciacquo\n" + "-"*30 + "\n"
         
-        # Aggiunge (NON IDONEO) se presente (senza asterischi nel TXT per pulizia)
-        nota_txt = r['nota'].replace('*', '') 
-        txt += f"\nGUSTO: {r['gusto']} {nota_txt} ({r['kg']} KG)\n"
+        txt += f"\nGUSTO: {r['gusto']}{r['nota']} ({r['kg']} KG)\n"
         for i_n, d_o in RICETTE[r['gusto']]['ing']:
             p_e = int(d_o * (r['kg']/7.0))
             txt += f"- {i_n}: {p_e}g\n"
@@ -79,23 +78,24 @@ if st.session_state.produzione:
     # 2. ETICHETTE
     txt += "\n\n2. ETICHETTE NUTRIZIONALI\n" + "="*30 + "\n"
     for _, r in df_p.iterrows():
-        txt += f"\nPRODOTTO: {r['gusto']}\nLotto: {lotto_s}\nCalorie: {RICETTE[r['gusto']]['kcal']} kcal/100g\n"
+        txt += f"\nPRODOTTO: {r['gusto']}{r['nota']}\nLotto: {lotto_s}\nCalorie: {RICETTE[r['gusto']]['kcal']} kcal/100g\n"
         txt += "."*25 + "\n"
 
     # 3. RIEPILOGO E FIRME
     txt += "\n\n3. RIEPILOGO GIORNALIERO\n" + "="*30 + "\n"
     txt += f"Data: {datetime.now().strftime('%d/%m/%Y')} | Lotto: {lotto_s}\n\n"
     for _, r in df_p.iterrows():
-        nota_txt = r['nota'].replace('*', '')
-        txt += f"[ ] {r['gusto']} {nota_txt} - {r['kg']} KG\n"
+        txt += f"[ ] {r['gusto']}{r['nota']} - {r['kg']} KG\n"
     txt += "\n\nFirma Franco Antonio: ________________\nFirma Quagliozzi Giuseppe: ______________\n"
 
     st.download_button("🖨️ SCARICA DOCUMENTO UNICO", txt, f"Prod_{lotto_s}.txt", use_container_width=True)
 
-    # Anteprima elenco con grassetto
-    st.subheader("📋 Riepilogo Caricato:")
+    # Anteprima elenco a video
+    st.subheader("📋 Gusti in lista:")
     for p in st.session_state.produzione:
-        st.write(f"🔹 {p['gusto']} {p['nota']}: **{p['kg']} KG**")
+        # Qui usiamo il grassetto per il video
+        nota_video = f" **{p['nota']}**" if p['nota'] else ""
+        st.write(f"🔹 {p['gusto']}{nota_video}: **{p['kg']} KG**")
     
     if st.button("🗑️ Svuota Tutto"):
         st.session_state.produzione = []; st.rerun()
