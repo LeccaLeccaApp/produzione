@@ -1,12 +1,11 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import re
 
-# Configurazione Pagina
-st.set_page_config(page_title="Lecca-Lecca ERP Master", layout="wide")
+st.set_page_config(page_title="Lecca-Lecca Smart Lab", layout="wide")
 
-# --- 1. DATABASE RICETTE COMPLETO ---
-# Qui ho inserito i gusti con le dosi corrette e le categorie per il risciacquo
+# --- DATABASE RICETTE ---
 RICETTE = {
     "NOCCIOLA VEGANO": {"ing": [("Acqua", 4375), ("Pasta Nocciola", 910), ("Zuccheri", 2450)], "seq": 1, "kcal": 210},
     "BUENO VEGANO": {"ing": [("Acqua", 625), ("Pasta Bueno Veg", 120)], "seq": 1, "kcal": 225},
@@ -14,115 +13,96 @@ RICETTE = {
     "GALAK": {"ing": [("Base Bianca", 825), ("Pasta Galak", 100)], "seq": 2, "kcal": 260},
     "FRAGOLA": {"ing": [("Acqua", 2100), ("Polpa Fragola", 2625), ("Base", 1400)], "seq": 3, "kcal": 150},
     "LIMONE": {"ing": [("Acqua", 700), ("Succo Limone", 300)], "seq": 3, "kcal": 130},
-    "FONDENTE": {"ing": [("Acqua", 600), ("Fondente 70%", 450)], "seq": 12, "kcal": 280},
-    "TORTA SEMIFREDDO": {"ing": [("Panna", 500), ("Meringa", 500)], "seq": 13, "kcal": 310},
-    "TRONCHETTO": {"ing": [("Base Semifreddo", 1000)], "seq": 13, "kcal": 290}
+    "LIQUIRIZIA": {"ing": [("Acqua", 5000), ("Liquirizia", 500)], "seq": 4, "kcal": 180},
+    "FONDENTE": {"ing": [("Acqua", 600), ("Fondente 70%", 450)], "seq": 12, "kcal": 280}
 }
 
-# --- 2. GESTIONE MEMORIA (Session State) ---
 if 'produzione' not in st.session_state: st.session_state.produzione = []
-if 'attiva' not in st.session_state: st.session_state.attiva = False
 if 'spese' not in st.session_state: st.session_state.spese = []
 
-st.title("🍦 Gestione Totale Laboratorio")
+st.title("🍦 Smart Laboratorio Lecca-Lecca")
 
-# --- 3. MENU LATERALE (Input Dati) ---
-with st.sidebar:
-    st.header("📝 Pianificazione")
-    g_scelto = st.selectbox("Seleziona Gusto", sorted(list(RICETTE.keys())))
-    kg = st.number_input("Quantità (KG)", value=7.0, step=0.5)
+# --- 1. INSERIMENTO RAPIDO (VOCALE/TESTO) ---
+st.subheader("🎤 Inserimento Rapido")
+input_testo = st.text_area("Esempio: 'Terminato nocciola', 'Liquirizia mancano 2kg'", placeholder="Scrivi o usa il microfono...")
+
+if st.button("ELABORA ORDINE"):
+    # Logica per estrarre gusto e kg dal testo
+    testo = input_testo.upper()
+    gusto_trovato = None
+    for g in RICETTE.keys():
+        if g in testo:
+            gusto_trovato = g
+            break
     
-    if st.button("➕ AGGIUNGI A LISTA"):
-        st.session_state.produzione.append({"gusto": g_scelto, "kg": kg, "seq": RICETTE[g_scelto]['seq']})
-        st.session_state.attiva = False
-        st.toast(f"{g_scelto} aggiunto!")
+    if gusto_trovato:
+        # Cerca i KG nel testo, altrimenti usa default 7
+        kg_match = re.search(r'(\d+)\s*KG', testo)
+        kg = float(kg_match.group(1)) if kg_match else 7.0
+        st.session_state.produzione.append({"gusto": gusto_trovato, "kg": kg, "seq": RICETTE[gusto_trovato]['seq']})
+        st.success(f"Aggiunto: {gusto_trovato} ({kg} KG)")
+    else:
+        st.error("Gusto non riconosciuto. Riprova.")
 
-    if st.session_state.produzione and not st.session_state.attiva:
-        st.divider()
-        if st.button("🚀 AVVIA PRODUZIONE", use_container_width=True):
-            st.session_state.attiva = True
-
-    st.divider()
-    st.header("📸 Contabilità")
-    foto = st.camera_input("Scatta Fattura")
+# --- 2. FOTOCAMERA FATTURE ---
+with st.sidebar:
+    st.header("📸 Fatture & Spese")
+    foto = st.camera_input("Scatta")
     if foto:
-        with st.form("fm_spesa"):
+        with st.form("f_spesa"):
             forn = st.text_input("Fornitore")
-            euro = st.number_input("Importo €", step=0.01)
-            if st.form_submit_button("SALVA IN STORICO"):
-                st.session_state.spese.append({"f": forn, "e": euro, "d": datetime.now().strftime("%d/%m/%y")})
-                st.success("Fattura salvata!")
+            imp = st.number_input("€", step=0.01)
+            if st.form_submit_button("SALVA"):
+                st.session_state.spese.append({"f": forn, "e": imp, "d": datetime.now().strftime("%d/%m")})
 
-# --- 4. AREA PRINCIPALE (Tab) ---
-tab_prod, tab_cont = st.tabs(["🚀 PRODUZIONE & STAMPA", "📊 STORICO SPESE"])
-
-with tab_prod:
-    if st.session_state.attiva:
-        # Costruzione Report Unificato per Stampa
-        report_stampa = f"REPORT PRODUZIONE - {datetime.now().strftime('%d/%m/%Y')}\n"
-        report_stampa += "="*40 + "\n"
+# --- 3. TASTO ORDINA ADESSO (GENERA DOCUMENTO UNICO) ---
+if st.session_state.produzione:
+    st.divider()
+    if st.button("🚀 ORDINA ADESSO (GENERA TUTTO)", use_container_width=True):
+        data_o = datetime.now().strftime("%d/%m/%Y")
+        lotto = datetime.now().strftime("%Y%m%d")
+        
+        # --- COSTRUZIONE FILE UNICO ---
+        doc = f"--- RIEPILOGO GIORNALIERO PRODUZIONE ({data_o}) ---\n"
+        doc += f"Lotto: {lotto}\n"
+        doc += "Firme: Franco Antonio / Quagliozzi Giuseppe\n"
+        doc += "="*40 + "\n\n"
         
         df = pd.DataFrame(st.session_state.produzione).sort_values(by="seq")
         u_s = None
         
-        # Generazione testo per il file di stampa
+        sezione_etichette = "\n" + "="*40 + "\n--- SEZIONE ETICHETTE ---\n"
+        sezione_gelatiere = "\n" + "="*40 + "\n--- CARTA DEL GELATIERE ---\n"
+        
         for _, row in df.iterrows():
+            # Risciacquo macchina [cite: 2026-02-11]
             if u_s is not None and row['seq'] != u_s:
-                report_stampa += "\n🚿 RISCIACQUO MACCHINA OBBLIGATORIO\n" [cite: 2026-02-11]
-                report_stampa += "-"*40 + "\n"
+                sezione_gelatiere += "\n🚿 RISCIACQUO MACCHINA\n"
             
-            report_stampa += f"\n🍦 {row['gusto']} ({row['kg']} KG)\n"
+            # Parte Gelatiere (Dosi)
+            sezione_gelatiere += f"\n👉 {row['gusto']} ({row['kg']} KG)\n"
             for ing, dose in RICETTE[row['gusto']]['ing']:
-                peso = int(dose * (row['kg']/7.0)) if row['kg'] != 7.0 else int(dose)
-                report_stampa += f"  - {ing}: {peso}g\n"
-            report_stampa += f"🏷️ Calorie: {RICETTE[row['gusto']]['kcal']} kcal/100g\n"
+                p = int(dose * (row['kg']/7.0))
+                sezione_gelatiere += f"  - {ing}: {p}g\n"
+            
+            # Parte Etichette
+            sezione_etichette += f"\n🏷️ {row['gusto']}\nValore energetico: {RICETTE[row['gusto']]['kcal']} kcal/100g\n"
+            
             u_s = row['seq']
-
-        # Tasto Stampa Unica (File di testo leggibile da iPhone)
+        
+        final_file = doc + sezione_gelatiere + sezione_etichette
+        
         st.download_button(
-            label="🖨️ STAMPA TUTTA LA LISTA (Unico Foglio)",
-            data=report_stampa,
-            file_name=f"Produzione_{datetime.now().strftime('%d_%m')}.txt",
+            label="🖨️ SCARICA E STAMPA DOCUMENTO UNICO",
+            data=final_file,
+            file_name=f"Produzione_{lotto}.txt",
             mime="text/plain",
             use_container_width=True
         )
-        
-        st.divider()
-        
-        # Visualizzazione Schede a schermo
-        u_s = None
-        for _, row in df.iterrows():
-            if u_s is not None and row['seq'] != u_s:
-                st.error("🚿 RISCIACQUO MACCHINA") [cite: 2026-02-11]
-            
-            with st.expander(f"📖 {row['gusto']} - {row['kg']} KG", expanded=True):
-                c1, c2 = st.columns([2,1])
-                with c1:
-                    for ing, dose in RICETTE[row['gusto']]['ing']:
-                        peso = int(dose * (row['kg']/7.0)) if row['kg'] != 7.0 else int(dose)
-                        st.write(f"- {ing}: **{peso}g**")
-                with c2:
-                    st.caption("ETICHETTA")
-                    st.write(f"{RICETTE[row['gusto']]['kcal']} kcal")
-            u_s = row['seq']
-            
-        if st.button("✅ FINE SESSIONE (Svuota tutto)"):
-            st.session_state.produzione = []
-            st.session_state.attiva = False
-            st.rerun()
-    else:
-        st.info("Pianifica i gusti nel menu a sinistra e clicca il Razzo 🚀")
 
-with tab_cont:
-    st.subheader("Archivio Fatture")
-    if st.session_state.spese:
-        df_spese = pd.DataFrame(st.session_state.spese)
-        st.table(df_spese)
-        
-        # Report per mail
-        testo_mail = "RIEPILOGO SPESE:\n"
-        for s in st.session_state.spese:
-            testo_mail += f"- {s['d']} | {s['f']}: €{s['e']}\n"
-        st.text_area("Testo per Email/WhatsApp:", testo_mail)
-    else:
-        st.write("Nessuna fattura salvata oggi.")
+    # Visualizzazione veloce a schermo
+    for p in st.session_state.produzione:
+        st.write(f"✅ In lista: {p['gusto']} - {p['kg']} KG")
+    
+    if st.button("🗑️ Svuota Lista"):
+        st.session_state.produzione = []; st.rerun()
