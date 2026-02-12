@@ -5,27 +5,52 @@ import re
 
 st.set_page_config(page_title="Lecca-Lecca Smart Lab", layout="wide")
 
-# --- DATABASE RICETTE ---
+# --- DATABASE RICETTE AGGIORNATO (Tutti i gusti inviati) ---
 RICETTE = {
-    "NOCCIOLA VEGANO": {"ing": [("Acqua", 4375), ("Pasta Nocciola", 910), ("Zuccheri", 2450)], "seq": 1, "kcal": 210},
-    "BUENO VEGANO": {"ing": [("Acqua", 625), ("Pasta Bueno Veg", 120)], "seq": 1, "kcal": 225},
-    "STRACCIATELLA": {"ing": [("Base Lecca lecca", 7000), ("Cioccolato scaglie", 560)], "seq": 2, "kcal": 240},
-    "GALAK": {"ing": [("Base Bianca", 825), ("Pasta Galak", 100)], "seq": 2, "kcal": 260},
-    "FRAGOLA": {"ing": [("Acqua", 2100), ("Polpa Fragola", 2625), ("Base", 1400)], "seq": 3, "kcal": 150},
-    "LIMONE": {"ing": [("Acqua", 700), ("Succo Limone", 300)], "seq": 3, "kcal": 130},
-    "LIQUIRIZIA": {"ing": [("Acqua", 5000), ("Liquirizia", 500)], "seq": 4, "kcal": 180},
+    # --- GOLOSITÀ & NUOVI (Base 1000g) ---
+    "AMARENA": {"ing": [("Base bianca", 1000), ("Variegato amarena", 100)], "seq": 2, "kcal": 232, "all": "LATTE", "nutri": "G: 11.6g | C: 28.2g | P: 2.8g"},
+    "STRACCIATELLA": {"ing": [("Base bianca", 1000), ("Cioccolato scaglie", 80)], "seq": 2, "kcal": 250, "all": "LATTE, SOIA", "nutri": "G: 15.4g | C: 23.3g | P: 3.3g"},
+    "FIOR DI LATTE": {"ing": [("Base bianca", 1000)], "seq": 2, "kcal": 226.6, "all": "LATTE", "nutri": "G: 13.1g | C: 22.9g | P: 3.2g"},
+    "SMARTIES": {"ing": [("Base bianca", 1000), ("Confetti cioccolato", 100)], "seq": 2, "kcal": 238.1, "all": "LATTE", "nutri": "G: 13.3g | C: 25.3g | P: 3.2g"},
+    "KINDER CEREALI": {"ing": [("Base bianca", 1000), ("Crema Kinder Cereali", 100)], "seq": 2, "kcal": 289.8, "all": "LATTE, GLUTINE", "nutri": "G: 18.1g | C: 27.3g | P: 3.4g"},
+    "KINDER BARRETTA": {"ing": [("Base bianca", 1000), ("Pasta Nocciola/Cacao", 100)], "seq": 2, "kcal": 270.8, "all": "LATTE, FRUTTA A GUSCIO", "nutri": "G: 16.2g | C: 26.9g | P: 3.4g"},
+    "SPAGNOLA": {"ing": [("Base bianca", 1000), ("Variegato amarena", 100), ("Cacao", 20)], "seq": 2, "kcal": 245, "all": "LATTE", "nutri": "G: 14.0g | C: 24.5g | P: 3.2g"},
+    "CROCCANTE AMARENA": {"ing": [("Base bianca", 1000), ("Variegato amarena", 80), ("Granella croccante", 50)], "seq": 2, "kcal": 296.6, "all": "LATTE, FRUTTA A GUSCIO, GLUTINE", "nutri": "G: 15.7g | C: 34.2g | P: 3.6g"},
+    "COSTIERA": {"ing": [("Base bianca", 1000), ("Biscotto sbriciolato", 100), ("Aroma Limone", 10)], "seq": 2, "kcal": 246, "all": "LATTE, GLUTINE", "nutri": "G: 13.5g | C: 26.0g | P: 3.0g"},
+    "KINDER CARDS": {"ing": [("Base bianca", 1000), ("Mix Nocciola/Cacao", 100)], "seq": 2, "kcal": 280, "all": "LATTE, FRUTTA A GUSCIO", "nutri": "G: 17.2g | C: 26.8g | P: 3.7g"},
+    
+    # --- CLASSICI (Dosi specifiche) ---
+    "NOCCIOLA": {"ing": [("Base bianca", 900), ("Pasta Nocciola", 130), ("Destrosio", 25)], "seq": 2, "kcal": 286.2, "all": "LATTE, FRUTTA A GUSCIO", "nutri": "G: 19.0g | C: 22.8g | P: 4.6g"},
+    "PISTACCHIO": {"ing": [("Base bianca", 900), ("Pasta Pistacchio", 100), ("Destrosio", 20)], "seq": 2, "kcal": 275.9, "all": "LATTE, FRUTTA A GUSCIO", "nutri": "G: 17.4g | C: 23.0g | P: 5.5g"},
+    "BACIO": {"ing": [("Base bianca", 900), ("Pasta Sorriso Amaro", 100)], "seq": 2, "kcal": 276.5, "all": "LATTE, FRUTTA A GUSCIO", "nutri": "G: 17.9g | C: 23.0g | P: 4.3g"},
+    "CIOCCOLATO AL LATTE": {"ing": [("Base bianca", 900), ("Cacao", 100), ("Destrosio", 50), ("Cioccolato puro", 30)], "seq": 2, "kcal": 254.8, "all": "LATTE", "nutri": "G: 13.8g | C: 25.8g | P: 4.8g"},
+    "CAFFÈ": {"ing": [("Base bianca", 900), ("Caffè Arabica", 25)], "seq": 2, "kcal": 228, "all": "LATTE", "nutri": "G: 12.4g | C: 24.8g | P: 3.1g"},
+    "TIRAMISÙ": {"ing": [("Base bianca", 900), ("Pasta Tiramisù Special", 50)], "seq": 2, "kcal": 235, "all": "LATTE, UOVA", "nutri": "G: 12.9g | C: 25.1g | P: 3.4g"},
+    
+    # --- FRUTTA & SORBETTI (Seq 3) ---
+    "FRAGOLA": {"ing": [("Acqua", 300), ("Polpa Fragola", 375), ("Base Bianca", 200), ("Destrosio", 40), ("Saccarosio", 75), ("Pasta Fragolina", 50)], "seq": 3, "kcal": 121.3, "all": "Può contenere LATTE", "nutri": "G: 2.4g | C: 23.8g"},
+    "LIMONE": {"ing": [("Acqua", 700), ("Lemon Plus", 300)], "seq": 3, "kcal": 119, "all": "Nessuno", "nutri": "C: 27.0g"},
+    "PESCA": {"ing": [("Acqua", 700), ("Frutta Pesca", 300)], "seq": 3, "kcal": 122, "all": "Nessuno", "nutri": "C: 26.7g"},
+    "ANGURIA": {"ing": [("Acqua", 700), ("Anguria 500", 300)], "seq": 3, "kcal": 118, "all": "Nessuno", "nutri": "C: 27.0g"},
+    "MELONE": {"ing": [("Acqua", 700), ("Melone 500", 300)], "seq": 3, "kcal": 125, "all": "Nessuno", "nutri": "C: 28.7g"},
+    "ANANAS": {"ing": [("Acqua", 700), ("Frutta Ananas", 300)], "seq": 3, "kcal": 120, "all": "Nessuno", "nutri": "C: 27.5g"},
+    
+    # --- VEGANI (Seq 1) ---
+    "PISTACCHIO VEGANO": {"ing": [("Acqua", 625), ("Bianco Stevia", 312), ("Pasta Pistacchio", 100), ("Destrosio", 25)], "seq": 1, "kcal": 195, "all": "FRUTTA A GUSCIO", "nutri": "G: 11.0g | C: 22.9g"},
+    "SICILY VEGANO": {"ing": [("Acqua", 625), ("Bianco Stevia", 312), ("Pasta Mandorla", 75)], "seq": 1, "kcal": 192, "all": "FRUTTA A GUSCIO", "nutri": "G: 10.7g | C: 25.3g"},
+    "NOCCIOLA VEGANO": {"ing": [("Acqua", 625), ("Bianco Stevia", 312), ("Pasta Nocciola", 130)], "seq": 1, "kcal": 180, "all": "FRUTTA A GUSCIO", "nutri": "G: 10.5g | C: 21.8g"},
+    "CIOCCOLATO FONDENTE": {"ing": [("Acqua", 600), ("Fondente Babbi", 450), ("Destrosio", 20)], "seq": 1, "kcal": 176.1, "all": "SOIA, Può contenere LATTE", "nutri": "G: 4.1g | C: 29.2g"},
 }
 
 if 'produzione' not in st.session_state: st.session_state.produzione = []
 
-st.title("🍦 Smart Lab Lecca-Lecca")
+st.title("🍦 Smart Lab Lecca-Lecca - Database Unificato")
 
 # --- 1. INSERIMENTO VOCALE / TESTO ---
 st.subheader("🎤 Dettatura Ordine")
-input_testo = st.text_area("Dì: 'Terminato nocciola, non idoneo limone, Galak 2kg'", height=120)
+input_testo = st.text_area("Dì: 'Terminato Smarties, non idoneo Kinder Cereali, Nocciola 2'", height=120)
 
 if st.button("🚀 ELABORA TUTTO L'ORDINE"):
-    # Divide il testo e pulisce
     fasi = re.split(r'[,.\n]', input_testo.upper())
     aggiunti = 0
     
@@ -35,12 +60,12 @@ if st.button("🚀 ELABORA TUTTO L'ORDINE"):
         
         for g_nome in RICETTE.keys():
             if g_nome in f:
-                # LOGICA "NON IDONEO": basta che ci sia la parola IDONEO nel pezzo di frase
                 nota_stato = " (NON IDONEO)" if "IDONEO" in f else ""
-                
-                # CERCA I KG (Solo se presenti, altrimenti 7)
                 kg_m = re.search(r'(\d+)', f)
-                kg_val = float(kg_m.group(1)) if kg_m else 7.0
+                
+                # Default: se la ricetta base è intorno ai 1000g, il default è 1 dose. Se è per 7kg, il default è 7.
+                peso_tot_base = sum(val for nome, val in RICETTE[g_nome]['ing'])
+                kg_val = float(kg_m.group(1)) if kg_m else (7.0 if peso_tot_base > 2000 else 1.0)
                 
                 st.session_state.produzione.append({
                     "gusto": g_nome, 
@@ -60,42 +85,46 @@ if st.session_state.produzione:
     df_p = pd.DataFrame(st.session_state.produzione).sort_values(by="seq")
     lotto_s = datetime.now().strftime("%Y%m%d")
 
-    # COSTRUZIONE TESTO
-    # 1. CARTA GELATIERE
     txt = "1. CARTA DEL GELATIERE\n" + "="*30 + "\n"
     u_s = None
     for _, r in df_p.iterrows():
-        # Risciacquo [cite: 2026-02-11]
+        # Risciacquo macchina tra sequenze diverse [cite: 2026-02-11]
         if u_s is not None and r['seq'] != u_s:
             txt += "\nRISCIACQUO MACCHINA\n" + "-"*30 + "\nrisciacquo\n" + "-"*30 + "\n"
         
-        txt += f"\nGUSTO: {r['gusto']}{r['nota']} ({r['kg']} KG)\n"
+        peso_ricetta_base = sum(val for nome, val in RICETTE[r['gusto']]['ing'])
+        label_quantita = "KG" if peso_ricetta_base > 2000 else "DOSI"
+        
+        txt += f"\nGUSTO: {r['gusto']}{r['nota']} ({r['kg']} {label_quantita})\n"
+        
+        # Calcolo proporzionale
+        fattore = r['kg'] / (7.0 if label_quantita == "KG" else 1.0)
         for i_n, d_o in RICETTE[r['gusto']]['ing']:
-            p_e = int(d_o * (r['kg']/7.0))
+            p_e = int(d_o * fattore)
             txt += f"- {i_n}: {p_e}g\n"
         u_s = r['seq']
 
-    # 2. ETICHETTE
-    txt += "\n\n2. ETICHETTE NUTRIZIONALI\n" + "="*30 + "\n"
+    txt += "\n\n2. ETICHETTE, ALLERGENI & NUTRIZIONE\n" + "="*30 + "\n"
     for _, r in df_p.iterrows():
-        txt += f"\nPRODOTTO: {r['gusto']}{r['nota']}\nLotto: {lotto_s}\nCalorie: {RICETTE[r['gusto']]['kcal']} kcal/100g\n"
+        g = RICETTE[r['gusto']]
+        txt += f"\nPRODOTTO: {r['gusto']}{r['nota']}\n"
+        txt += f"ALLERGENI: {g.get('all', 'Vedere ingredienti')}\n"
+        txt += f"VALORI x 100g: {g['kcal']} kcal | {g.get('nutri', '')}\n"
+        txt += f"Lotto: {lotto_s}\n"
         txt += "."*25 + "\n"
 
-    # 3. RIEPILOGO E FIRME
     txt += "\n\n3. RIEPILOGO GIORNALIERO\n" + "="*30 + "\n"
     txt += f"Data: {datetime.now().strftime('%d/%m/%Y')} | Lotto: {lotto_s}\n\n"
     for _, r in df_p.iterrows():
-        txt += f"[ ] {r['gusto']}{r['nota']} - {r['kg']} KG\n"
+        txt += f"[ ] {r['gusto']}{r['nota']} - {r['kg']} unità\n"
     txt += "\n\nFirma Franco Antonio: ________________\nFirma Quagliozzi Giuseppe: ______________\n"
 
     st.download_button("🖨️ SCARICA DOCUMENTO UNICO", txt, f"Prod_{lotto_s}.txt", use_container_width=True)
 
-    # Anteprima elenco a video
-    st.subheader("📋 Gusti in lista:")
+    st.subheader("📋 Anteprima Produzione:")
     for p in st.session_state.produzione:
-        # Qui usiamo il grassetto per il video
         nota_video = f" **{p['nota']}**" if p['nota'] else ""
-        st.write(f"🔹 {p['gusto']}{nota_video}: **{p['kg']} KG**")
+        st.write(f"🔹 {p['gusto']}{nota_video}: **{p['kg']} unità**")
     
     if st.button("🗑️ Svuota Tutto"):
         st.session_state.produzione = []; st.rerun()
