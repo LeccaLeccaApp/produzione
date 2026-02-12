@@ -19,83 +19,72 @@ RICETTE = {
 if 'produzione' not in st.session_state: st.session_state.produzione = []
 if 'spese' not in st.session_state: st.session_state.spese = []
 
-st.title("🍦 Smart Lab: Carta, Etichette e Riepilogo")
+st.title("🍦 Smart Lab Lecca-Lecca")
 
 # --- 1. INSERIMENTO VOCALE / TESTO ---
-st.subheader("🎤 Dettatura Ordine")
-input_testo = st.text_area("Dì tutto quello che serve (es: 'Terminato nocciola, mancano 3kg fragola')", height=150)
+st.subheader("🎤 Dettatura Ordine (Multiplo)")
+input_testo = st.text_area("Esempio: 'Terminato nocciola, fragola 4kg, liquirizia'", height=100)
 
-if st.button("🚀 ELABORA TUTTO L'ORDINE", use_container_width=True):
-    linee = input_testo.upper().split(',') # Divide per virgola o punto se dettato
-    trovati = 0
-    for frase in linee:
+if st.button("🚀 ELABORA TUTTO L'ORDINE"):
+    fasi = input_testo.upper().replace('.', ',').split(',')
+    aggiunti = 0
+    for frase in fasi:
         for gusto in RICETTE.keys():
             if gusto in frase:
-                kg_match = re.search(r'(\d+)', frase)
-                kg = float(kg_match.group(1)) if kg_match else 7.0
+                kg_m = re.search(r'(\d+)', frase)
+                kg = float(kg_m.group(1)) if kg_m else 7.0
                 st.session_state.produzione.append({"gusto": gusto, "kg": kg, "seq": RICETTE[gusto]['seq']})
-                trovati += 1
-    if trovati > 0:
-        st.success(f"Ho aggiunto {trovati} gusti alla lista!")
+                aggiunti += 1
+    if aggiunti > 0:
+        st.success(f"Caricati {aggiunti} gusti!")
     else:
-        st.error("Non ho riconosciuto gusti. Prova a scandire bene il nome.")
+        st.warning("Nessun gusto riconosciuto.")
 
-# --- 2. FOTO FATTURE (SIDEBAR) ---
+# --- 2. FOTOCAMERA (SIDEBAR) ---
 with st.sidebar:
     st.header("📸 Fatture")
     foto = st.camera_input("Scatta")
-    if foto:
-        st.success("Fattura acquisita!")
+    if foto: st.success("Foto salvata")
 
 # --- 3. GENERAZIONE DOCUMENTO UNICO ---
 if st.session_state.produzione:
     st.divider()
     if st.button("🖨️ GENERA FILE PER STAMPA UNICA", use_container_width=True):
-        data_o = datetime.now().strftime("%d/%m/%Y")
-        lotto = datetime.now().strftime("%Y%m%d")
-        df = pd.DataFrame(st.session_state.produzione).sort_values(by="seq")
+        data_s = datetime.now().strftime("%d/%m/%Y")
+        lotto_s = datetime.now().strftime("%Y%m%d")
+        df_p = pd.DataFrame(st.session_state.produzione).sort_values(by="seq")
         
-        # --- PARTE 1: CARTA DEL GELATIERE ---
-        corpo_gelatiere = f"1. CARTA DEL GELATIERE - {data_o}\n" + "="*40 + "\n"
+        # --- BLOCCO 1: CARTA DEL GELATIERE ---
+        txt = "--- 1. CARTA DEL GELATIERE ---\n" + "="*30 + "\n"
         u_s = None
-        for _, row in df.iterrows():
-            if u_s is not None and row['seq'] != u_s:
-                corpo_gelatiere += "\n🚿 RISCIACQUO MACCHINA OBBLIGATORIO\n" [cite: 2026-02-11]
-                corpo_gelatiere += "-"*40 + "\n"
-            corpo_gelatiere += f"\n🍦 {row['gusto']} ({row['kg']} KG)\n"
-            for ing, dose in RICETTE[row['gusto']]['ing']:
-                p = int(dose * (row['kg']/7.0))
-                corpo_gelatiere += f"  - {ing}: {p}g\n"
-            u_s = row['seq']
+        for _, r in df_p.iterrows():
+            if u_s is not None and r['seq'] != u_s:
+                txt += "\n🚿 RISCIACQUO MACCHINA\n" + "-"*30 + "\n" [cite: 2026-02-11]
+            txt += f"\n🍦 {r['gusto']} ({r['kg']} KG)\n"
+            for i_n, d_o in RICETTE[r['gusto']]['ing']:
+                p_e = int(d_o * (r['kg']/7.0))
+                txt += f"  - {i_n}: {p_e}g\n"
+            u_s = r['seq']
 
-        # --- PARTE 2: ETICHETTE ---
-        corpo_etichette = "\n\n2. ETICHETTE NUTRIZIONALI\n" + "="*40 + "\n"
-        for _, row in df.iterrows():
-            corpo_etichette += f"\n🏷️ PRODOTTO: {row['gusto']}\nLotto: {lotto}\nCalorie: {RICETTE[row['gusto']]['kcal']} kcal/100g\n"
-            corpo_etichette += "."*20 + "\n"
+        # --- BLOCCO 2: ETICHETTE ---
+        txt += "\n\n--- 2. ETICHETTE NUTRIZIONALI ---\n" + "="*30 + "\n"
+        for _, r in df_p.iterrows():
+            txt += f"\n🏷️ {r['gusto']} | Lotto: {lotto_s}\nCalorie: {RICETTE[r['gusto']]['kcal']} kcal/100g\n"
+            txt += "."*20 + "\n"
 
-        # --- PARTE 3: RIEPILOGO E FIRME ---
-        corpo_riepilogo = "\n\n3. RIEPILOGO GIORNALIERO\n" + "="*40 + "\n"
-        corpo_riepilogo += f"Data: {data_o} | Lotto Unico: {lotto}\n\n"
-        for _, row in df.iterrows():
-            corpo_riepilogo += f"[ ] {row['gusto']} - {row['kg']} KG\n"
-        corpo_riepilogo += "\n\nFirma Responsabile 1: Franco Antonio ________________\n"
-        corpo_riepilogo += "Firma Responsabile 2: Quagliozzi Giuseppe ______________\n"
+        # --- BLOCCO 3: RIEPILOGO E FIRME ---
+        txt += "\n\n--- 3. RIEPILOGO GIORNALIERO ---\n" + "="*30 + "\n"
+        txt += f"Data: {data_s} | Lotto: {lotto_s}\n\n"
+        for _, r in df_p.iterrows():
+            txt += f"[ ] {r['gusto']} - {r['kg']} KG\n"
+        txt += "\n\nFirma Franco Antonio: __________________\n"
+        txt += "Firma Quagliozzi Giuseppe: ________________\n"
 
-        file_finale = corpo_gelatiere + corpo_etichette + corpo_riepilogo
-        
-        st.download_button(
-            label="💾 SCARICA DOCUMENTO COMPLETO",
-            data=file_finale,
-            file_name=f"Produzione_Completa_{lotto}.txt",
-            mime="text/plain",
-            use_container_width=True
-        )
+        st.download_button("💾 SCARICA TUTTO PER STAMPA", txt, f"Produzione_{lotto_s}.txt")
 
-    # Elenco visivo
-    st.write("### 📋 Gusti pronti per l'ordine:")
-    for i, p in enumerate(st.session_state.produzione):
-        st.write(f"{i+1}. {p['gusto']} - {p['kg']} KG")
+    # Anteprima lista
+    for p in st.session_state.produzione:
+        st.write(f"✅ {p['gusto']} ({p['kg']} KG)")
     
-    if st.button("🗑️ Svuota Tutto"):
+    if st.button("🗑️ Svuota"):
         st.session_state.produzione = []; st.rerun()
